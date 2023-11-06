@@ -27,8 +27,8 @@ app.use(cors());
 const pool = new Pool({
   user: 'postgres', // Replace with your PostgreSQL username
   host: 'localhost',
-  database: 'master', // Replace with your database name
-  password: 'postgresql123', // Replace with your PostgreSQL password
+  database: 'postgres', // Replace with your database name
+  password: 'indu', // Replace with your PostgreSQL password
   port: 5432, // Replace with your PostgreSQL port if different
 });
 
@@ -476,6 +476,7 @@ COMMIT;
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     const { clientId, OANumber } = req.body;
+    console.log(clientId,OANumber);
     // Authenticate with Autodesk Forge
     const authData = new URLSearchParams();
     authData.append('client_id', CLIENT_ID);
@@ -492,8 +493,13 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     const accessToken = authResponse.data.access_token;
    // console.log(accessToken);
 
-   const customerUpdateQuery = 'UPDATE public."Customer" SET "OAN" = $1 WHERE "ClientID" = $2';
-   await pool.query(customerUpdateQuery, [OANumber, clientId]);
+   const clientQuery = 'SELECT "UserName" FROM public."User" WHERE "UserID" = $1';
+   const re = await pool.query(clientQuery, [clientId]);
+   const clientname=re.rows[0].clientName;
+
+   const customerUpdateQuery = 'INSERT INTO public."Customer" ("OAN","ClientName", "ClientID") VALUES($1, $2,$3)';
+   await pool.query(customerUpdateQuery, [OANumber, clientname,clientId]);
+
 
     // Upload the file to the existing bucket
     const file = req.file;

@@ -13,7 +13,7 @@ function ClientViewer() {
     const [percentage, setPercentage] = useState(0);
     const navigate = useNavigate();
     const openDialog = () => {
-        navigate('/login');
+        navigate('/');
       };
   const closeDialog = () => {
     setShowDialog(false);

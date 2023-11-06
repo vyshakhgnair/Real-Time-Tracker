@@ -14,6 +14,7 @@ function App() {
       <Routes>
         <Route path="/customers" element={<CustomerDashBoard />} />
         <Route path="/" element={<Login />} />
+        <Route path="/file" element={<FileUpload />} />
         <Route path="/users" element={<UserDashBoard />} />
         <Route path="/tile/:OAN" element={<Tiles />} />
         <Route path="/ColorTiles" element={<ColorTiles />} />
