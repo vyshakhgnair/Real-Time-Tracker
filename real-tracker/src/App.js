@@ -19,7 +19,7 @@ function App() {
         <Route path="/tile/:OAN" element={<Tiles />} />
         <Route path="/ColorTiles" element={<ColorTiles />} />
         <Route path="/upload" element={<FileUpload />} />
-        <Route path="/clientViewer/:OAN" element={<ClientViewer />} />
+        <Route path="/clientViewer/:sgid" element={<ClientViewer />} />
         
       </Routes>
     </Router>
