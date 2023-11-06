@@ -27,8 +27,8 @@ app.use(cors());
 const pool = new Pool({
   user: 'postgres', // Replace with your PostgreSQL username
   host: 'localhost',
-  database: 'postgres', // Replace with your database name
-  password: 'indu', // Replace with your PostgreSQL password
+  database: 'master', // Replace with your database name
+  password: 'postgresql123', // Replace with your PostgreSQL password
   port: 5432, // Replace with your PostgreSQL port if different
 });
 
@@ -43,8 +43,6 @@ app.post('/login', async (req, res) => {
       text: 'SELECT * FROM "User" WHERE "UserID" = $1 AND "UserPassword" = $2',
       values: [sgid, password],
     };
-
-
     const result = await pool.query(query);
 
     if (result.rows.length === 1) {
@@ -90,8 +88,10 @@ app.get('/api/getPercentage/:sgid', async (req, res) => {
   try {
     const { sgid } = req.params;
     const query = 'SELECT "Percentage" FROM public."Customer" WHERE "ClientID" = $1';
+    //console.log('sgid : ',sgid)
     const values = [sgid];
     const result = await pool.query(query,values);
+    //console.log('result : ',result)
     const per = result.rows[0].Percentage
     if (result.rows.length > 0) {
       res.json({ percentage : per });
@@ -343,15 +343,6 @@ app.get('/placedBlocks3', async (req, res) => {
   }
 });
 
-
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
-
 app.get('/getTotalBlockCount', async (req, res) => {
   try {
     // Query to get the total block count for a specific "OAN" (e.g., 'OA1')
@@ -390,7 +381,7 @@ app.post('/updateBlockAttributes', async (req, res) => {
     const OAN=req.query.OAN;
 
     // Update the MNo and TrNo attributes in the Blocks table
-    const query = 'UPDATE public."Blocks" SET "MNo" = $1, "TrNo" = $2, "Status" = $3 WHERE "OAN" = $4 AND "RedNo" = $5';
+    const query = 'UPDATE public."Blocks" SET "MNo" = $1, "TrNo" = $2, "Status" = $3, "PlacementTime" = CURRENT_TIMESTAMP WHERE "OAN" = $4 AND "RedNo" = $5';
     const values = [MNo, TrNo, 'Placed', OAN, redNo]; // Assuming you want to set the Status to 'Placed'
     
     await pool.query(query, values);
@@ -476,7 +467,7 @@ COMMIT;
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     const { clientId, OANumber } = req.body;
-    console.log(clientId,OANumber);
+    //console.log(clientId,OANumber);
     // Authenticate with Autodesk Forge
     const authData = new URLSearchParams();
     authData.append('client_id', CLIENT_ID);
@@ -491,12 +482,13 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     });
 
     const accessToken = authResponse.data.access_token;
-   // console.log(accessToken);
-
+  //  console.log('OAN : ',OANumber);
+  //   console.log('clientid : ',clientId)
    const clientQuery = 'SELECT "UserName" FROM public."User" WHERE "UserID" = $1';
    const re = await pool.query(clientQuery, [clientId]);
-   const clientname=re.rows[0].clientName;
-
+   //console.log('re : ',re)
+   const clientname=re.rows[0].UserName;
+    //console.log('clientname : ',clientname)
    const customerUpdateQuery = 'INSERT INTO public."Customer" ("OAN","ClientName", "ClientID") VALUES($1, $2,$3)';
    await pool.query(customerUpdateQuery, [OANumber, clientname,clientId]);
 
@@ -515,7 +507,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
       const objectURN = uploadResponse.data.objectId;
       const base64URN = Buffer.from(objectURN).toString('base64');
-      console.log("Base64 URN: " + base64URN);
+      //console.log("Base64 URN: " + base64URN);
       const dwg_urn =base64URN;
       const base_url = "https://developer.api.autodesk.com/modelderivative/v2/designdata";
       
@@ -545,7 +537,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
               }  
           }
       }
-      console.log(blocknames);
+      //console.log(blocknames);
     
       // Insert each blockname as RedNo in the PostgreSQL "Blocks" table
     for (const blockname of blocknames) {
@@ -563,4 +555,10 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     console.error(error);
     res.status(500).send({ success: false, error: error.message });
   }
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
