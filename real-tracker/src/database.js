@@ -11,11 +11,9 @@ app.use(cors());
 // Autodesk Forge API credentials
 const CLIENT_ID = 'hQd7ISBoA79IXZiMQyNwNjmA2tlFAuYm';
 const CLIENT_SECRET = '7XsA00C7MaGdhmqM';
-const BUCKET_KEY = 'vygn-real-time-tracker'; 
-
+const BUCKET_KEY = 'vygn-real-time-tracker';
 
 const blocknames=[];
-
 
 // Configure multer to handle file uploads
 const storage = multer.memoryStorage();
@@ -61,28 +59,6 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
-// app.get('/api/getPercentage', (req, res) => {
-//   const userID = req.body.userID; // You should handle the request body properly
-//   //console.log(userID)
-//   const query = {
-//     text: 'SELECT "Percentage" FROM public."Customer" WHERE "ClientID" = $1',
-//     values: ['C1'],
-//   };
-
-//   pool.query(query)
-//     .then((result) => {
-//       if (result.rows.length === 1) {
-//         res.json({ percentage: result.rows[0].Percentage });
-//       } else {
-//         res.status(404).json({ error: 'Percentage not found' });
-//       }
-//     })
-//     .catch((error) => {
-//       console.error(error);
-//       res.status(500).json({ error: 'Server error' });
-//     });
-// });
 
 app.get('/api/getPercentage/:sgid', async (req, res) => {
   try {
@@ -343,6 +319,15 @@ app.get('/placedBlocks3', async (req, res) => {
   }
 });
 
+
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+
 app.get('/getTotalBlockCount', async (req, res) => {
   try {
     // Query to get the total block count for a specific "OAN" (e.g., 'OA1')
@@ -383,8 +368,28 @@ app.post('/updateBlockAttributes', async (req, res) => {
     // Update the MNo and TrNo attributes in the Blocks table
     const query = 'UPDATE public."Blocks" SET "MNo" = $1, "TrNo" = $2, "Status" = $3, "PlacementTime" = CURRENT_TIMESTAMP WHERE "OAN" = $4 AND "RedNo" = $5';
     const values = [MNo, TrNo, 'Placed', OAN, redNo]; // Assuming you want to set the Status to 'Placed'
-    
     await pool.query(query, values);
+
+    const placed = 'SELECT COUNT(*) FROM Public."Blocks" Where "OAN"=$1';
+    const placedValue = [OAN]
+    const tot = await pool.query(placed,placedValue)
+    const totalBlocksforPercentage = tot.rows[0].count
+    //console.log(totalBlocksforPercentage);
+
+    const placed2 = 'SELECT COUNT(*) FROM Public."Blocks" Where "OAN"=$1 AND "Status"=$2';
+    const placedValue2 = [OAN, 'Placed']
+    const tot2 = await pool.query(placed2,placedValue2)
+    const placedBlocksforPercentage = tot2.rows[0].count
+    //console.log(placedBlocksforPercentage);
+
+    const per = (placedBlocksforPercentage / totalBlocksforPercentage) * 100
+    const percentageAsInteger = parseInt(per, 10);
+    //console.log(per, ' ',percentageAsInteger)
+    const updateQuery = 'UPDATE Public."Customer" SET "Percentage" = $1 WHERE "OAN" = $2';
+    const updateValues = [percentageAsInteger,OAN]
+    await pool.query(updateQuery,updateValues)
+  // Execute the query to calculate and update the percentage
+  
 
     res.json({ message: 'Block attributes updated successfully' });
   } catch (error) {
@@ -397,14 +402,31 @@ app.post('/updateBlockAttributes', async (req, res) => {
 app.post('/rejectBlockAttributes', async (req, res) => {
   try {
     const { redNo, OAN } = req.body; // Get OAN from the request body
-    console.log("OAN :",OAN);
+    //console.log("OAN :",OAN);
 
     // Update the MNo and TrNo attributes to null in the Blocks table
     const query = 'UPDATE public."Blocks" SET "MNo" = $1, "TrNo" = $2, "Status" = $3 WHERE "RedNo" = $4 AND "OAN" = $5';
-    const values = [null, null, "Not Placed", redNo, OAN]; 
+    const values = [null, null, "NotPlaced", redNo, OAN]; 
 
     await pool.query(query, values);
+    const placed = 'SELECT COUNT(*) FROM Public."Blocks" Where "OAN"=$1';
+    const placedValue = [OAN]
+    const tot = await pool.query(placed,placedValue)
+    const totalBlocksforPercentage = tot.rows[0].count
+    //console.log(totalBlocksforPercentage);
 
+    const placed2 = 'SELECT COUNT(*) FROM Public."Blocks" Where "OAN"=$1 AND "Status"=$2';
+    const placedValue2 = [OAN, 'Placed']
+    const tot2 = await pool.query(placed2,placedValue2)
+    const placedBlocksforPercentage = tot2.rows[0].count
+    //console.log(placedBlocksforPercentage);
+
+    const per = (placedBlocksforPercentage / totalBlocksforPercentage) * 100
+    const percentageAsInteger = parseInt(per, 10);
+    //console.log(per, ' ',percentageAsInteger)
+    const updateQuery = 'UPDATE Public."Customer" SET "Percentage" = $1 WHERE "OAN" = $2';
+    const updateValues = [percentageAsInteger,OAN]
+    await pool.query(updateQuery,updateValues)
     res.json({ message: 'Block rejected successfully' });
   } catch (error) {
     console.error(error);
@@ -443,26 +465,6 @@ app.post('/getBlockAttributes', async (req, res) => {
     res.status(500).json({ message: 'Error fetching block attributes' });
   }
 });
-
-//percentage calculation code
-/*
--- Update the "Percentage" column in the "Customer" table
-UPDATE public."Customer" AS c
-SET "Percentage" = (
-  SELECT 
-    (COUNT(b."RedNo") FILTER (WHERE b."Status" = 'Placed')::numeric / COUNT(b."RedNo")::numeric) * 100
-  FROM public."Blocks" AS b
-  WHERE b."OAN" = c."OAN"
-)
-WHERE EXISTS (
-  SELECT 1
-  FROM public."Blocks" AS b
-  WHERE b."OAN" = c."OAN"
-);
-
--- Commit the transaction to apply the changes
-COMMIT;
-*/
 
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
@@ -555,10 +557,4 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     console.error(error);
     res.status(500).send({ success: false, error: error.message });
   }
-});
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
 });
